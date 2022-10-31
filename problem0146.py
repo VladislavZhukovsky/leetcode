@@ -53,6 +53,7 @@ class LRUCache:
     def get(self, key: int) -> int:
         node = self.hashtable.get(key)
         if node:
+            self.dll.move(node)
             return node.value
         else:
             return -1
