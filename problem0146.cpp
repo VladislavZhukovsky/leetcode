@@ -1,71 +1,66 @@
 #include <iostream>
+#include <unordered_map>
 
-using std::cout, std::endl;
+using std::cout, std::endl, std::unordered_map;
 
 class Node
 {
     public:
-        char value;
+        int key;
+        int value;
         Node* next;
         Node* prev;
 };
 
-class LRU
+class LRUCache
 {
-    private:
+    public:
         int capacity;
         int count;
-        
-    public:
         Node* head = nullptr;
+        unordered_map<int, Node*> index;
 
-        LRU(int capacity)
+        LRUCache(int capacity)
         {
             this->capacity = capacity;
             this->count = 0;
+            this->index = {};
         }
 
-        void Print()
+        int put(int key, int value)
         {
-            if (count == 0)
-            {
-                cout << "empty" << endl;
-                return;
-            }
-            auto node = head;
-            cout << head->value << ' ';
-            node = node->next;
-            while(node != nullptr && node != head)
-            {
-                cout << node->value << ' ';
-                node = node->next;
-            }
-            cout << endl;
-        }
+            auto node = index.find(key) == index.end() ? nullptr : index[key];
 
-        char Get(char value)
-        {
-            if (count == 0)
+            //inserting new key
+            if (node == nullptr)
             {
-                head = new Node();
-                head->value = value;
-                count = 1;
-                
-                Print();
-                return head->value;
-            }
-
-            if (count == 1)
-            {
-                if (head->value == value)
+                //LRU is empty
+                if (count == 0)
                 {
-                    
-                    Print();
+                    head = new Node();
+                    head->key = key;
+                    head->value = value;
+                    count = 1;
+                    index[key] = head;
                     return head->value;
                 }
-                else
+
+                if (count == 1 && capacity == 1)
+                {
+                    index.erase(head->key);
+                    head = new Node();
+                    head->key = key;
+                    head->value = value;
+                    count = 1;
+                    index[key] = head;
+                    return head->value;
+                }
+
+                //only head in LRU
+                if (count == 1)
                 {
                     auto node = new Node();
+                    node->key = key;
                     node->value = value;
                     node->next = head;
                     node->prev = head;
@@ -73,33 +68,15 @@ class LRU
                     head->prev = node;
                     head = node;
                     count++;
-                    
-                    Print();
+                    index[key] = node;
                     return node->value;
                 }
-            }
 
-            auto node = FindNode(value);
-
-            if (node == head)
-            {
-                Print();
-                return head->value;
-            }
-
-            if (node == head->prev)
-            {
-                head = head->prev;
-                Print();
-                return head->value;
-            }
-
-            //add new
-            if (node == nullptr)
-            {
+                //LRU is not full
                 if (count < capacity)
                 {
                     auto node = new Node();
+                    node->key = key;
                     node->value = value;
                     node->next = head;
                     node->prev = head->prev;
@@ -113,12 +90,15 @@ class LRU
 
                     count++;
                     
-                    Print();
+                    index[key] = node;
                     return node->value;
                 }
+                //LRU is full
                 else
                 {
+                    index.erase(head->prev->key);
                     auto node = new Node();
+                    node->key = key;
                     node->value = value;
                     node->next = head;
                     node->prev = head->prev->prev;
@@ -128,10 +108,27 @@ class LRU
 
                     head = node;
 
-                    Print();
+                    index[key] = node;
                     return node->value;
                 }
             }
+
+            //key exists
+
+            //it is head
+            if (node == head)
+            {
+                head->value = value;
+                return head->value;
+            }
+
+            //is it tail
+            if (node == head->prev)
+            {
+                head = head->prev;
+                head->value = value;
+                return head->value;
+            }          
 
             node->prev->next = node->next;
             node->next->prev = node->prev;
@@ -143,37 +140,82 @@ class LRU
             head->prev->next = head;
             head->next->prev = head;
             
-            Print();
+            node->value = value;
             return node->value;
         }
 
-    private:
-        Node* FindNode(char value)
+        int get(int key)
         {
-            auto node = head;
-            if (node->value == value)
+            auto node = index.find(key) == index.end() ? nullptr : index[key];
+            if (node == nullptr)
             {
-                return node;
+                //Print();
+                return -1;
             }
-            node = node->next;
-            while (node != head)
+            if (node == head)
             {
-                if (node->value == value)
-                    return node;
+                //Print();
+                return node->value;
+            }
+            if (node == head->prev)
+            {
+                head = head->prev;
+                //Print();
+                return head->value;
+            }
+
+            node->prev->next = node->next;
+            node->next->prev = node->prev;
+
+            node->next = head;
+            node->prev = head->prev;
+
+            head = node;
+            head->prev->next = head;
+            head->next->prev = head;
+            //Print();
+            return node->value;
+        }
+
+        void Print()
+        {
+            if (count == 0)
+            {
+                cout << "empty" << endl;
+                return;
+            }
+            auto node = head;
+            cout << node->key << '=' << node->value << ' ';
+            node = node->next;
+            while(node != nullptr && node != head)
+            {
+                cout << node->key << '=' << node->value << ' ';
                 node = node->next;
             }
-            return nullptr;
+            cout << endl;
         }
 };
 
 int main()
 {
-    auto lru = new LRU(4);
-    lru->Get('A');
-    lru->Get('B');
-    lru->Get('C');
-    lru->Get('D');
-    lru->Get('B');
-    lru->Get('E');
-    lru->Get('B');
+    // auto lru = new LRUCache(2);
+    // lru->put(1, 1); lru->Print();
+    // lru->put(2, 2); lru->Print();
+    // cout << lru->get(1) << endl;
+    // lru->put(3, 3); lru->Print();
+    // cout << lru->get(2) << endl;
+    // lru->put(4, 4); lru->Print();
+    // cout << lru->get(1) << endl;
+    // cout << lru->get(3) << endl;
+    // cout << lru->get(4) << endl;
+    // delete lru;
+
+    auto lru = new LRUCache(1);
+    cout << lru->get(1) << endl;
+    lru->put(2, 1);
+    cout << lru->get(2) << endl;
+    lru->put(3, 2);
+    cout << lru->get(2) << endl;
+    cout << lru->get(3) << endl;
+    delete lru;
 }
